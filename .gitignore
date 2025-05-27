@@ -1,0 +1,14 @@
+/target/
+
+**/*.rlib
+**/*.dSYM
+**/*.exe
+**/*.dll
+**/*.so
+**/*.dylib
+
+/Cargo.lock
+
+.vscode/
+
+.DS_Store
