@@ -1,19 +1,32 @@
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Token {
-    Attr(String),
+    Ident(String),
+    Number(String),
+
     Let,
     Fn,
     Return,
     Qbit,
     Measure,
+
     Gate(String),
-    Ident(String),
-    Int(i64),
-    Plus, Minus, Star, Slash,
-    Assign, Arrow,
-    LParen, RParen,
-    LBrace, RBrace,
-    Semicolon, Comma,
+    QOp { gate: String, target: String },
+
+    Attr(String),
+
+    LParen,
+    RParen,
+    LBrace,
+    RBrace,
+    Plus,
+    Minus,
+    Star,
+    Slash,
+    Comma,
+    Semicolon,
+    Arrow,
+    Assign,
+
     EOF,
     Unknown(String),
 }

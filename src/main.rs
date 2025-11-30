@@ -24,9 +24,9 @@ fn main() {
     let mut lex = Lexer::new(code);
 
     loop {
-        let t = lex.next_token();
-        println!("{:?}", t);
-        if t == Token::EOF {
+        let tok = lex.next_token();
+        println!("{:?}", tok);
+        if tok == Token::EOF {
             break;
         }
     }

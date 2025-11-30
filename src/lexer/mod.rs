@@ -4,15 +4,13 @@ pub mod quantum;
 pub mod annotate;
 
 pub use token::Token;
-pub use annotate::Annotation;
-pub use quantum::quantum_reduce;
-pub use classical::lex_identifier;
 
 pub struct Lexer {
     src: Vec<char>,
     pos: usize,
     pub pe_enabled: bool,
     gate_buffer: Vec<Token>,
+    unread: Option<Token>,
 }
 
 impl Lexer {
@@ -22,14 +20,16 @@ impl Lexer {
             pos: 0,
             pe_enabled: true,
             gate_buffer: Vec::new(),
+            unread: None,
         }
     }
 
-    fn peek(&self) -> Option<char> {
+   
+    pub fn peek(&self) -> Option<char> {
         self.src.get(self.pos).copied()
     }
 
-    fn next_char(&mut self) -> Option<char> {
+    pub fn next_char(&mut self) -> Option<char> {
         let ch = self.peek()?;
         self.pos += 1;
         Some(ch)
@@ -45,7 +45,16 @@ impl Lexer {
         }
     }
 
+    fn unread_token(&mut self, t: Token) {
+        self.unread = Some(t);
+    }
+
+   
     fn next_raw_token(&mut self) -> Token {
+        if let Some(t) = self.unread.take() {
+            return t;
+        }
+
         self.skip_ws();
 
         let c = match self.next_char() {
@@ -54,36 +63,39 @@ impl Lexer {
         };
 
         match c {
-
+            // Attribute: #[pe], #[nope], #[static], #[dynamic]
             '#' => {
                 if self.peek() == Some('[') {
-                    self.next_char();
+                    self.next_char(); // skip '['
                     let mut name = String::new();
                     while let Some(ch) = self.peek() {
                         if ch == ']' {
-                            self.next_char();
+                            self.next_char(); // skip ']'
                             break;
                         }
                         name.push(self.next_char().unwrap());
                     }
-                    return Token::Attr(name.trim().to_string());
+                    Token::Attr(name.trim().to_string())
+                } else {
+                    Token::Unknown("#".into())
                 }
-                Token::Unknown("#".into())
             }
 
             ch if ch.is_ascii_digit() => quantum::lex_number(self, ch),
 
-            ch if ch.is_alphanumeric() => classical::lex_identifier(self, ch),
+            ch if ch.is_alphanumeric() || ch == '_' => classical::lex_identifier(self, ch),
 
+            
             '(' => Token::LParen,
             ')' => Token::RParen,
             '{' => Token::LBrace,
             '}' => Token::RBrace,
-            ';' => Token::Semicolon,
             '+' => Token::Plus,
             '*' => Token::Star,
             '/' => Token::Slash,
             ',' => Token::Comma,
+            ';' => Token::Semicolon,
+
             '-' => {
                 if self.peek() == Some('>') {
                     self.next_char();
@@ -92,42 +104,121 @@ impl Lexer {
                     Token::Minus
                 }
             }
+
             '=' => Token::Assign,
 
             other => Token::Unknown(other.to_string()),
         }
     }
 
-    // ---------------- OPTIMIZED TOKENIZATION ----------------
+    fn read_gate_call_or_gate(&mut self, gname: String) -> Token {
+        let t1 = self.next_raw_token();
+        let t2 = self.next_raw_token();
+        let t3 = self.next_raw_token();
+        let t4 = self.next_raw_token();
+
+        if let (
+            Token::LParen,
+            Token::Ident(qname),
+            Token::RParen,
+            Token::Semicolon,
+        ) = (&t1, &t2, &t3, &t4)
+        {
+            Token::QOp {
+                gate: gname,
+                target: qname.clone(),
+            }
+        } else {
+            self.unread_token(t4);
+            self.unread_token(t3);
+            self.unread_token(t2);
+            self.unread_token(t1);
+            Token::Gate(gname)
+        }
+    }
+
+    fn next_raw_or_qop(&mut self) -> Token {
+        let t = self.next_raw_token();
+        if let Token::Gate(gname) = t {
+            self.read_gate_call_or_gate(gname)
+        } else {
+            t
+        }
+    }
+
+  
     pub fn next_token(&mut self) -> Token {
         if !self.gate_buffer.is_empty() {
             return self.gate_buffer.remove(0);
         }
 
-        let t = self.next_raw_token();
+        loop {
+            let t0 = self.next_raw_token();
 
-        if let Token::Attr(name) = &t {
-            match name.as_str() {
-                "pe" | "static" => self.pe_enabled = true,
-                "nope" | "dynamic" => self.pe_enabled = false,
-                _ => {}
-            }
-            return self.next_token(); 
-        }
-
-        // Quantum gate + PE
-        if let Token::Gate(_) = &t {
-            if self.pe_enabled {
-                self.gate_buffer.push(t);
-                quantum::quantum_reduce(&mut self.gate_buffer);
-
-                if self.gate_buffer.is_empty() {
-                    return self.next_token();
+            match t0 {
+                Token::Attr(name) => {
+                    match name.as_str() {
+                        "pe" | "static" => self.pe_enabled = true,
+                        "nope" | "dynamic" => self.pe_enabled = false,
+                        _ => {}
+                    }
+                    continue;
                 }
-                return self.gate_buffer.remove(0);
+
+                Token::Gate(gname) => {
+                    let first = self.read_gate_call_or_gate(gname);
+
+                    if let Token::QOp { .. } = first {
+                        if self.pe_enabled {
+                            self.gate_buffer.push(first);
+                            quantum::quantum_reduce(&mut self.gate_buffer);
+
+                            loop {
+                                let t_next = self.next_raw_or_qop();
+
+                                match t_next {
+                                    Token::QOp { .. } if self.pe_enabled => {
+                                        self.gate_buffer.push(t_next);
+                                        quantum::quantum_reduce(&mut self.gate_buffer);
+                                    }
+
+                                    Token::Attr(name) => {
+                                        match name.as_str() {
+                                            "pe" | "static" => self.pe_enabled = true,
+                                            "nope" | "dynamic" => self.pe_enabled = false,
+                                            _ => {}
+                                        }
+                                        break;
+                                    }
+
+                                    other => {
+                                        if other != Token::EOF {
+                                            self.unread_token(other);
+                                        }
+                                        break;
+                                    }
+                                }
+                            }
+
+                          
+                            if !self.gate_buffer.is_empty() {
+                                return self.gate_buffer.remove(0);
+                            } else {
+                                // All gates cancelled out.
+                                continue;
+                            }
+                        } else {
+                            // PE disabled: emit QOp directly, no cancellation.
+                            return first;
+                        }
+                    } else {
+                        return first;
+                    }
+                }
+
+               
+                other => return other,
             }
         }
-
-        t
     }
 }
