@@ -1,0 +1,18 @@
+#[pe]
+fn main() {
+    qbit q;
+
+    // These two H should cancel under PE
+    H(q);
+    H(q);
+
+    // These two X should cancel
+    X(q);
+    X(q);
+
+    // Disable PE for the last one
+    #[nope]
+    X(q);
+
+    return;
+}

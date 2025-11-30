@@ -322,6 +322,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "qxad"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "inkwell",
+ "logos",
+ "thiserror",
+]
+
+[[package]]
 name = "redox_syscall"
 version = "0.5.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -424,17 +435,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
-]
-
-[[package]]
-name = "toy-comp"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "inkwell",
- "logos",
- "thiserror",
 ]
 
 [[package]]

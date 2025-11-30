@@ -1,4 +1,4 @@
-use toy_comp::lexer::{Lexer, Token};
+use qxad::lexer::{Lexer, Token};
 
 fn collect_tokens(mut lex: Lexer) -> Vec<Token> {
     let mut toks = Vec::new();

@@ -1,27 +1,28 @@
 mod lexer;
 
 use lexer::{Lexer, Token};
+use std::env;
+use std::fs;
+use std::path::Path;
 
 fn main() {
-    let code = r#"
-        qbit q;
+    let args: Vec<String> = env::args().collect();
 
-        #[pe]
-        H(q);
-        H(q);
+    if args.len() <= 1 {
+        eprintln!("Usage: qxad <file.qxd>");
+        return;
+    }
 
-        #[nope]
-        X(q);
-        X(q);
+    let path = &args[1];
+    let p = Path::new(path);
 
-        #[pe]
-        CNOT(a,b);
-        CNOT(a,b);
+    if p.extension().and_then(|s| s.to_str()) != Some("qxd") {
+        eprintln!("Error: expected a .qxd source file, got {}", path);
+        return;
+    }
 
-        measure q -> r;
-    "#;
-
-    let mut lex = Lexer::new(code);
+    let src = fs::read_to_string(path).expect("could not read .qxd file");
+    let mut lex = Lexer::new(&src);
 
     loop {
         let tok = lex.next_token();

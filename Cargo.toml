@@ -1,5 +1,5 @@
 [package]
-name = "toy-comp"
+name = "qxad"
 version = "0.1.0"
 edition = "2021"
 
@@ -11,7 +11,7 @@ anyhow = "1.0"
 clap = { version = "4.0", features = ["derive"] } 
 
 [lib]
-name = "toy_comp"
+name = "qxad"
 path = "src/lib.rs"
 
 

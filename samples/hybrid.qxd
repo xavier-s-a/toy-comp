@@ -1,0 +1,14 @@
+#[pe]
+fn main() {
+    let n = 10;
+    qbit q;
+
+    H(q);
+    H(q);
+
+    X(q);
+    #[nope]
+    X(q);
+
+    return n;
+}
