@@ -10,6 +10,10 @@ thiserror = "1.0"
 anyhow = "1.0"        
 clap = { version = "4.0", features = ["derive"] } 
 
+[lib]
+name = "toy_comp"
+path = "src/lib.rs"
+
 
 [build-dependencies]
 # lalrpop = "0.19"
